@@ -1,6 +1,7 @@
 const express = require('express');
 
 const db = require('./actionModel');
+const db2 = require('../projects/projectModel');
 
 const router = express.Router();
 
@@ -48,30 +49,39 @@ router.delete('/:id', async (req, res) => {
 
 //post
 router.post('/', async (req, res) => {
-    try {
-        const action = await db.insert(req.body);
-        //test that the input sent includes an id, description and a note
-        if(action.project_id && action.description && action.notes) {
-            //if so, test that the description length is less than or equal to 128 characters
-            if(action.description.length <= 128) {
-        //if so complete the res
-                res.status(200).json(action)
+    const newAction = req.body;
+
+    //1. if the req includes project id, description and notes then commence the try statement, if not move to bottom else statement
+    if (newAction.project_id && newAction.description && newAction.notes) {
+        //only executes if proj id, desc, and notes are in req body
+        try {
+            //waits for the response and sets actionId to the id assigned to newAction
+            const actionId = await db2.get(newAction.project_id);
+            console.log(actionId)
+            //if actionId exists, then execute this block if not move to next else statement
+            if(actionId) {
+                //if actionID exists then make sure the length of newAction's description is less than or equal to 128,if so proceed with post request, if not, throw error message
+                if(newAction.description.length <= 128) {
+                    res.status(200).json(newAction)
+                } else {
+                    res.status(500).json({
+                        message: 'Description is too long try again. limit is 128 characters. You ain\'t writing a book man'
+                    })
+                }
             } else {
-            //if not, throw error with error message
+                res.status(500).json({
+                    message: "Project ID does not exist, please create that project first or use an existing project ID"
+                })
+            }
+        } catch (e) {
             res.status(500).json({
-                message: 'Description is too long try again. limit is 128 characters. You ain\'t writing a book man'
-            })
+                message: "failed to add the new item"
+            });
         }
-        //if the id, description or notes are missing throw error message
-        } else {
-            res.status(500).json({
+    } else {
+        res.status(400).json({
             message: 'project_id, description and notes are required, verify you included these and try again'
-       })
-     }
-    } catch (e) {
-        res.status(500).json({
-            message: "failed to add the new item"
-        });
+        })
     }
 });
 
